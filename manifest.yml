@@ -1,0 +1,12 @@
+---
+applications:
+  - name: agent-credential-broker
+    path: target/agent-credential-broker-1.0.0.jar
+    memory: 1G
+    buildpacks:
+      - java_buildpack_offline
+    services:
+      - agent-sso
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
+      BROKER_SIGNING_SECRET: ((BROKER_SIGNING_SECRET))

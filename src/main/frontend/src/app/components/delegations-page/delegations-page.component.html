@@ -1,0 +1,134 @@
+<div class="delegations-container">
+  <h2 class="page-title">Delegation Tokens</h2>
+  <p class="page-subtitle">Create and manage delegation tokens for your AI agents</p>
+
+  <!-- Create new delegation -->
+  <mat-card class="create-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar>add_circle</mat-icon>
+      <mat-card-title>Create Delegation Token</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="create-form">
+        <mat-form-field appearance="outline">
+          <mat-label>Agent ID</mat-label>
+          <input matInput [(ngModel)]="agentId" placeholder="e.g. my-batch-agent" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Allowed Systems</mat-label>
+          <mat-select [(ngModel)]="selectedSystems" multiple>
+            @for (system of targetSystems(); track system.name) {
+              <mat-option [value]="system.name">{{ system.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="ttl-field">
+          <mat-label>TTL (hours)</mat-label>
+          <input matInput type="number" [(ngModel)]="ttlHours" min="1" max="720" />
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <button
+        mat-flat-button
+        (click)="createDelegation()"
+        [disabled]="!agentId.trim() || selectedSystems.length === 0"
+      >
+        <mat-icon>token</mat-icon>
+        Create Token
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  <!-- Newly created token display -->
+  @if (newlyCreatedToken()) {
+    <mat-card class="token-display-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="success-icon">check_circle</mat-icon>
+        <mat-card-title>Delegation Token Created</mat-card-title>
+        <mat-card-subtitle>Copy this token now — it won't be shown again</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="token-display">
+          <code class="token-text">{{ newlyCreatedToken() }}</code>
+        </div>
+      </mat-card-content>
+      <mat-card-actions align="end">
+        <button mat-button (click)="dismissToken()">Dismiss</button>
+        <button mat-flat-button (click)="copyToken(newlyCreatedToken()!)">
+          <mat-icon>content_copy</mat-icon>
+          Copy
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  }
+
+  <mat-divider class="section-divider"></mat-divider>
+
+  <!-- Active delegations -->
+  <h3 class="section-title">Active Delegations</h3>
+
+  @if (loading()) {
+    <div class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+  } @else if (delegations().length === 0) {
+    <mat-card class="empty-state">
+      <mat-card-content>
+        <mat-icon class="empty-icon">token</mat-icon>
+        <p>No delegation tokens yet</p>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="delegations-list">
+      @for (delegation of delegations(); track delegation.id) {
+        <mat-card class="delegation-card" [class.revoked]="delegation.revoked" [class.expired]="isExpired(delegation)">
+          <mat-card-header>
+            <mat-card-title>{{ delegation.agentId }}</mat-card-title>
+            <mat-card-subtitle>ID: {{ delegation.id }}</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="delegation-details">
+              <div class="detail-row">
+                <span class="detail-label">Systems:</span>
+                <div class="systems-chips">
+                  @for (system of delegation.allowedSystems; track system) {
+                    <span class="system-chip">{{ system }}</span>
+                  }
+                </div>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Created:</span>
+                <span>{{ delegation.createdAt | date: 'medium' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Expires:</span>
+                <span>{{ delegation.expiresAt | date: 'medium' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Status:</span>
+                <span class="status-badge" [class]="delegationStatus(delegation).toLowerCase()">
+                  {{ delegationStatus(delegation) }}
+                </span>
+              </div>
+            </div>
+          </mat-card-content>
+          <mat-card-actions align="end">
+            @if (!delegation.revoked && !isExpired(delegation)) {
+              <button mat-button matTooltip="Issue new token with fresh expiry" (click)="refresh(delegation.id)">
+                <mat-icon>refresh</mat-icon>
+                Refresh
+              </button>
+              <button mat-button color="warn" (click)="revoke(delegation.id)">
+                <mat-icon>block</mat-icon>
+                Revoke
+              </button>
+            }
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+  }
+</div>

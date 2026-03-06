@@ -1,0 +1,69 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.app-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+
+  .toolbar-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .toolbar-title {
+    font: var(--mat-sys-title-large);
+    font-weight: 500;
+  }
+
+  .toolbar-spacer {
+    flex: 1;
+  }
+}
+
+.nav-links {
+  display: flex;
+  gap: 4px;
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .active-link {
+    background-color: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.app-content {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+}
+
+.user-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  margin-bottom: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

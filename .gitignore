@@ -1,0 +1,21 @@
+# Maven
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Angular
+src/main/frontend/node_modules/
+src/main/frontend/dist/
+src/main/frontend/.angular/
+
+# Spring Boot local config
+application-local.yml
+*-local.properties
+
+# OS
+.DS_Store
+Thumbs.db
+/vars.yaml

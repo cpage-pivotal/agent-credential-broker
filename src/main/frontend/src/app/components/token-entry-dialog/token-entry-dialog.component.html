@@ -1,0 +1,26 @@
+<h2 mat-dialog-title>Enter Token for {{ data.targetSystem }}</h2>
+
+<mat-dialog-content>
+  @if (data.description) {
+    <p class="dialog-description">{{ data.description }}</p>
+  }
+
+  <mat-form-field appearance="outline" class="token-field">
+    <mat-label>Token</mat-label>
+    <input
+      matInput
+      [type]="showToken ? 'text' : 'password'"
+      [(ngModel)]="token"
+      placeholder="Paste your token here"
+      autocomplete="off"
+    />
+    <button mat-icon-button matSuffix (click)="showToken = !showToken" type="button">
+      <mat-icon>{{ showToken ? 'visibility_off' : 'visibility' }}</mat-icon>
+    </button>
+  </mat-form-field>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-flat-button (click)="submit()" [disabled]="!token.trim()">Save</button>
+</mat-dialog-actions>

@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: agent-credential-broker
+  security:
+    oauth2:
+      client:
+        registration:
+          sso:
+            provider: sso
+        provider:
+          sso: {}
+      resourceserver:
+        jwt:
+          issuer-uri: ${sso.issuer-uri:}
+
+broker:
+  delegation:
+    signing-secret: ${BROKER_SIGNING_SECRET:change-me-in-production}
+    previous-signing-secret: ${BROKER_PREVIOUS_SIGNING_SECRET:}
+    default-ttl: 72h
+    max-ttl: 720h
+  target-systems: []

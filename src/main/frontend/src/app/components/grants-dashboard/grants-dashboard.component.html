@@ -1,0 +1,64 @@
+<div class="grants-container">
+  <h2 class="page-title">Target System Grants</h2>
+  <p class="page-subtitle">Authorize access to external systems for your AI agents</p>
+
+  @if (loading()) {
+    <div class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+  } @else if (grants().length === 0) {
+    <mat-card class="empty-state">
+      <mat-card-content>
+        <mat-icon class="empty-icon">vpn_key_off</mat-icon>
+        <p>No target systems configured</p>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="grants-grid">
+      @for (grant of grants(); track grant.targetSystem) {
+        <mat-card class="grant-card" [class]="statusColor(grant.status)">
+          <mat-card-header>
+            <mat-icon mat-card-avatar class="system-icon">cloud</mat-icon>
+            <mat-card-title>{{ grant.targetSystem }}</mat-card-title>
+            <mat-card-subtitle>
+              <span class="type-badge">{{ typeLabel(grant.type) }}</span>
+            </mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content>
+            @if (grant.description) {
+              <p class="grant-description">{{ grant.description }}</p>
+            }
+            <div class="status-row">
+              <mat-icon [class]="'status-icon ' + statusColor(grant.status)">
+                {{ statusIcon(grant.status) }}
+              </mat-icon>
+              <span class="status-text">{{ grant.status | lowercase }}</span>
+            </div>
+          </mat-card-content>
+
+          <mat-card-actions align="end">
+            @if (grant.status === 'CONNECTED') {
+              <button mat-button color="warn" (click)="revoke(grant)">
+                <mat-icon>link_off</mat-icon>
+                Revoke
+              </button>
+            } @else if (grant.type === 'OAUTH_AUTHORIZATION_CODE' || grant.type === 'OAUTH_CLIENT_CREDENTIALS') {
+              <button mat-flat-button (click)="authorize(grant)">
+                <mat-icon>login</mat-icon>
+                Authorize
+              </button>
+            } @else if (grant.type === 'USER_PROVIDED_TOKEN') {
+              <button mat-flat-button (click)="enterToken(grant)">
+                <mat-icon>key</mat-icon>
+                Enter Token
+              </button>
+            } @else if (grant.type === 'STATIC_API_KEY') {
+              <span class="auto-badge">Auto-configured</span>
+            }
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+  }
+</div>
