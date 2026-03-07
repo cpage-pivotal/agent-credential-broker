@@ -51,7 +51,8 @@ public class OAuthCallbackController {
         var scheme = request.getHeader("X-Forwarded-Proto");
         if (scheme == null) scheme = request.getScheme();
         var host = request.getHeader("X-Forwarded-Host");
-        if (host == null) host = request.getServerName() + ":" + request.getServerPort();
+        if (host == null) host = request.getServerName();
+        host = host.replaceAll(":443$", "").replaceAll(":80$", "");
         return scheme + "://" + host + "/oauth/callback";
     }
 }

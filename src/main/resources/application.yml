@@ -1,3 +1,6 @@
+server:
+  forward-headers-strategy: native
+
 spring:
   application:
     name: agent-credential-broker
@@ -19,4 +22,20 @@ broker:
     previous-signing-secret: ${BROKER_PREVIOUS_SIGNING_SECRET:}
     default-ttl: 72h
     max-ttl: 720h
-  target-systems: []
+  target-systems:
+    - name: github
+      type: OAUTH_AUTHORIZATION_CODE
+      description: GitHub Copilot MCP Server
+      clientId: ${GITHUB_OAUTH_CLIENT_ID}
+      clientSecret: ${GITHUB_OAUTH_CLIENT_SECRET}
+      mcpServerUrl: "https://api.githubcopilot.com/mcp/"
+      discovery: rfc9728
+      defaultScopes: "repo read:org user:email"
+    - name: cloud-foundry
+      type: OAUTH_AUTHORIZATION_CODE
+      description: Cloud Foundry MCP Server
+      clientId: ${CF_MCP_OAUTH_CLIENT_ID}
+      clientSecret: ${CF_MCP_OAUTH_CLIENT_SECRET}
+      mcpServerUrl: "https://cf-auth-mcp.apps.tas-ndc.kuhn-labs.com/mcp"
+      discovery: rfc9728
+      defaultScopes: "openid cloud_controller.read cloud_controller.write"
