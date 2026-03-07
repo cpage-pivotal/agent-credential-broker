@@ -46,10 +46,10 @@
 
 .token-display-card {
   margin: 16px 0;
-  border: 1px solid #2e7d32;
+  border: 1px solid var(--mat-sys-tertiary);
 
   .success-icon {
-    color: #2e7d32;
+    color: var(--mat-sys-tertiary);
   }
 }
 
@@ -75,14 +75,34 @@
 }
 
 .empty-state {
-  text-align: center;
-  padding: 48px;
+  mat-card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 64px 48px;
+    gap: 8px;
+  }
 
   .empty-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
     color: var(--mat-sys-on-surface-variant);
+    opacity: 0.5;
+    margin-bottom: 8px;
+  }
+
+  .empty-title {
+    font: var(--mat-sys-title-medium);
+    color: var(--mat-sys-on-surface);
+    margin: 0;
+  }
+
+  .empty-subtitle {
+    font: var(--mat-sys-body-medium);
+    color: var(--mat-sys-on-surface-variant);
+    margin: 0;
+    text-align: center;
   }
 }
 
@@ -140,17 +160,17 @@
   font: var(--mat-sys-label-medium);
 
   &.active {
-    background-color: #e8f5e9;
-    color: #2e7d32;
+    background-color: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
   }
 
   &.expired {
-    background-color: #fff3e0;
-    color: #f57c00;
+    background-color: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
   }
 
   &.revoked {
-    background-color: #ffebee;
-    color: #c62828;
+    background-color: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
   }
 }

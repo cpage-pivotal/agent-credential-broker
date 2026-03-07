@@ -10,13 +10,14 @@
     <mat-card class="empty-state">
       <mat-card-content>
         <mat-icon class="empty-icon">vpn_key_off</mat-icon>
-        <p>No target systems configured</p>
+        <p class="empty-title">No target systems configured</p>
+        <p class="empty-subtitle">Contact your administrator to set up target system integrations</p>
       </mat-card-content>
     </mat-card>
   } @else {
     <div class="grants-grid">
       @for (grant of grants(); track grant.targetSystem) {
-        <mat-card class="grant-card" [class]="statusColor(grant.status)">
+        <mat-card [class]="'grant-card ' + statusColor(grant.status)">
           <mat-card-header>
             <mat-icon mat-card-avatar class="system-icon">cloud</mat-icon>
             <mat-card-title>{{ grant.targetSystem }}</mat-card-title>

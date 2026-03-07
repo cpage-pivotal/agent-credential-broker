@@ -78,7 +78,8 @@
     <mat-card class="empty-state">
       <mat-card-content>
         <mat-icon class="empty-icon">token</mat-icon>
-        <p>No delegation tokens yet</p>
+        <p class="empty-title">No delegation tokens yet</p>
+        <p class="empty-subtitle">Create a token above to grant an agent access to selected systems</p>
       </mat-card-content>
     </mat-card>
   } @else {
@@ -109,7 +110,7 @@
               </div>
               <div class="detail-row">
                 <span class="detail-label">Status:</span>
-                <span class="status-badge" [class]="delegationStatus(delegation).toLowerCase()">
+                <span [class]="'status-badge ' + delegationStatus(delegation).toLowerCase()">
                   {{ delegationStatus(delegation) }}
                 </span>
               </div>

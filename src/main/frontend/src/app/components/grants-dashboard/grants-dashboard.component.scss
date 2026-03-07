@@ -21,14 +21,34 @@
 }
 
 .empty-state {
-  text-align: center;
-  padding: 48px;
+  mat-card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 64px 48px;
+    gap: 8px;
+  }
 
   .empty-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
     color: var(--mat-sys-on-surface-variant);
+    opacity: 0.5;
+    margin-bottom: 8px;
+  }
+
+  .empty-title {
+    font: var(--mat-sys-title-medium);
+    color: var(--mat-sys-on-surface);
+    margin: 0;
+  }
+
+  .empty-subtitle {
+    font: var(--mat-sys-body-medium);
+    color: var(--mat-sys-on-surface-variant);
+    margin: 0;
+    text-align: center;
   }
 }
 
@@ -39,6 +59,17 @@
 }
 
 .grant-card {
+  border-left: 4px solid var(--mat-sys-outline-variant);
+  transition: border-left-color 0.2s ease;
+
+  &.connected {
+    border-left-color: var(--mat-sys-tertiary);
+  }
+
+  &.expired {
+    border-left-color: var(--mat-sys-error);
+  }
+
   .system-icon {
     font-size: 40px;
     width: 40px;
@@ -74,11 +105,13 @@
     height: 20px;
 
     &.connected {
-      color: #2e7d32;
+      color: var(--mat-sys-tertiary);
     }
+
     &.expired {
-      color: #f57c00;
+      color: var(--mat-sys-error);
     }
+
     &.disconnected {
       color: var(--mat-sys-on-surface-variant);
     }
