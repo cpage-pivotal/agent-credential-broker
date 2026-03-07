@@ -34,8 +34,8 @@ broker:
     - name: cloud-foundry
       type: OAUTH_AUTHORIZATION_CODE
       description: Cloud Foundry MCP Server
-      clientId: ${CF_MCP_OAUTH_CLIENT_ID}
-      clientSecret: ${CF_MCP_OAUTH_CLIENT_SECRET}
+      clientId: ${vcap.services.agent-sso.credentials.client_id:${CF_MCP_OAUTH_CLIENT_ID:}}
+      clientSecret: ${vcap.services.agent-sso.credentials.client_secret:${CF_MCP_OAUTH_CLIENT_SECRET:}}
       mcpServerUrl: "https://cf-auth-mcp.apps.tas-ndc.kuhn-labs.com/mcp"
       discovery: rfc9728
       defaultScopes: "openid cloud_controller.read cloud_controller.write"

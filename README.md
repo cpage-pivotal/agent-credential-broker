@@ -31,9 +31,12 @@ The broker uses Tanzu SSO (`p-identity`) for two purposes:
 1. **UI login** — Spring Security OAuth2 Login, using credentials from the
    service binding (`VCAP_SERVICES`)
 2. **MCP target system OAuth** — The broker acts as an OAuth client to obtain
-   tokens for protected MCP servers like cf-auth-mcp, using `CF_MCP_OAUTH_CLIENT_ID`
+   tokens for protected MCP servers like cf-auth-mcp
 
-Both use the same SSO client (the broker's own App ID), since the `uaa` plan
+Both use the same SSO client (the broker's own App ID). The Cloud Foundry
+target system reads `client_id` and `client_secret` directly from
+`VCAP_SERVICES` via `${vcap.services.agent-sso.credentials.client_id}`, so
+there are no separate environment variables to keep in sync. The `uaa` plan
 registers clients directly in the system UAA — the same authorization server
 that cf-auth-mcp advertises via RFC 9728.
 
@@ -66,38 +69,14 @@ that cf-auth-mcp advertises via RFC 9728.
      - `cloud_controller.read`
      - `cloud_controller.write`
 
-4. Get the broker's App ID and App Secret from the SSO tile's Credentials page,
-   then set them in `vars.yaml`:
-
-   ```yaml
-   CF_MCP_OAUTH_CLIENT_ID: <App ID from SSO tile>
-   CF_MCP_OAUTH_CLIENT_SECRET: <App Secret from SSO tile>
-   ```
-
-5. Push again to apply the environment variables:
-
-   ```bash
-   cf push --vars-file=vars.yaml
-   ```
-
 #### Credential Sync
 
-Three systems must agree on the client credentials:
-
-| System | Source | Updated by |
-|---|---|---|
-| UAA (source of truth) | SSO tile | Regenerating App Secret in SSO tile |
-| `VCAP_SERVICES` | Service binding | `cf push` (reads from UAA automatically) |
-| `CF_MCP_OAUTH_CLIENT_ID` env var | `vars.yaml` | `cf push --vars-file=vars.yaml` |
-
-If you regenerate the App Secret in the SSO tile:
-
-1. Update `CF_MCP_OAUTH_CLIENT_SECRET` in `vars.yaml` with the new secret
-2. Run `cf push --vars-file=vars.yaml`
+The Cloud Foundry target system credentials are read from `VCAP_SERVICES`
+automatically — no manual sync required. If you regenerate the App Secret in
+the SSO tile, just run `cf push` and the updated credentials flow through.
 
 Do **not** unbind and rebind the service — this deletes the existing client and
-creates a new one with a new App ID, invalidating the SSO tile configuration
-and `vars.yaml`.
+creates a new one with a new App ID, invalidating the SSO tile configuration.
 
 ### Required Environment Variables
 
@@ -107,20 +86,19 @@ and `vars.yaml`.
 
 Additional environment variables depend on which target systems are configured
 in `application.yml`. Each target system that uses OAuth references its client
-credentials via `${...}` placeholders — for example, `${CF_MCP_OAUTH_CLIENT_ID}`
-and `${GITHUB_OAUTH_CLIENT_ID}`.
+credentials via `${...}` placeholders. Target systems that share the SSO
+service binding (like Cloud Foundry) can read credentials from `VCAP_SERVICES`
+directly, requiring no environment variables.
 
 ### vars.yaml
 
 Create a `vars.yaml` file (git-ignored) with the signing secret and any
-target-system credentials:
+target-system credentials not sourced from service bindings:
 
 ```yaml
 BROKER_SIGNING_SECRET: <random-base64-string>
 
 # Target system credentials (add as needed)
-CF_MCP_OAUTH_CLIENT_ID: <app-id-from-sso-tile>
-CF_MCP_OAUTH_CLIENT_SECRET: <app-secret-from-sso-tile>
 GITHUB_OAUTH_CLIENT_ID: <from-github-oauth-app>
 GITHUB_OAUTH_CLIENT_SECRET: <from-github-oauth-app>
 ```
