@@ -4,7 +4,6 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import org.tanzu.broker.delegation.DelegationTokenService;
 import org.tanzu.broker.grant.GrantService;
-import org.tanzu.broker.security.WorkloadIdentityValidator;
 import org.tanzu.broker.targetsystem.TargetSystemRegistry;
 import org.tanzu.broker.token.TokenLifecycleService;
 import org.slf4j.Logger;
@@ -26,24 +25,20 @@ public class CredentialController {
     private final GrantService grantService;
     private final TargetSystemRegistry registry;
     private final TokenLifecycleService tokenLifecycleService;
-    private final WorkloadIdentityValidator workloadIdentityValidator;
 
     public CredentialController(DelegationTokenService delegationTokenService,
                                  GrantService grantService,
                                  TargetSystemRegistry registry,
-                                 TokenLifecycleService tokenLifecycleService,
-                                 WorkloadIdentityValidator workloadIdentityValidator) {
+                                 TokenLifecycleService tokenLifecycleService) {
         this.delegationTokenService = delegationTokenService;
         this.grantService = grantService;
         this.registry = registry;
         this.tokenLifecycleService = tokenLifecycleService;
-        this.workloadIdentityValidator = workloadIdentityValidator;
     }
 
     @PostMapping("/request")
     public ResponseEntity<?> requestCredential(
         @RequestHeader(value = "Authorization", required = false) String authHeader,
-        @RequestHeader(value = "X-Forwarded-Client-Cert", required = false) String xfccHeader,
         @RequestBody CredentialRequest request
     ) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -82,15 +77,6 @@ public class CredentialController {
         }
 
         var ts = system.get();
-
-        if (ts.requireWorkloadIdentity() && !workloadIdentityValidator.isValidPlatformWorkload(xfccHeader)) {
-            log.warn("Workload identity required for {} but XFCC validation failed (agent: {})",
-                request.targetSystem(), jwt.getClaim("agent").asString());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(Map.of("error", "Workload identity required — credential requests for "
-                    + request.targetSystem()
-                    + " must originate from a platform workload with a valid instance identity certificate"));
-        }
 
         if (ts.isStaticApiKey()) {
             var response = new ResourceAccessToken(

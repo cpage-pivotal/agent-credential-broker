@@ -23,15 +23,6 @@
             <mat-card-title>{{ grant.targetSystem }}</mat-card-title>
             <mat-card-subtitle>
               <span class="type-badge">{{ typeLabel(grant.type) }}</span>
-              @if (grant.requireWorkloadIdentity) {
-                <span class="workload-identity-badge"
-                      matTooltip="Credential requests for this system require a valid platform workload identity. The broker verifies a TLS client certificate (X-Forwarded-Client-Cert) issued by the platform CA, ensuring only workloads running on the platform can access this grant."
-                      matTooltipPosition="above"
-                      matTooltipClass="workload-identity-tooltip">
-                  <mat-icon class="workload-identity-icon">verified_user</mat-icon>
-                  workload identity
-                </span>
-              }
             </mat-card-subtitle>
           </mat-card-header>
 

@@ -11,8 +11,7 @@ public record UserGrant(
     GrantStatus status,
     Instant grantedAt,
     Instant expiresAt,
-    boolean hasRefreshToken,
-    boolean requireWorkloadIdentity
+    boolean hasRefreshToken
 ) {
     public enum GrantStatus {
         CONNECTED, NOT_CONNECTED, EXPIRED

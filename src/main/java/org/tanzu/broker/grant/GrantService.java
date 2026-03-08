@@ -68,12 +68,10 @@ public class GrantService {
     }
 
     private UserGrant toGrant(String userId, TargetSystem system) {
-        boolean workloadId = system.requireWorkloadIdentity();
-
         if (system.isStaticApiKey()) {
             return new UserGrant(
                 system.name(), system.type(), system.description(),
-                UserGrant.GrantStatus.CONNECTED, null, null, false, workloadId
+                UserGrant.GrantStatus.CONNECTED, null, null, false
             );
         }
 
@@ -81,7 +79,7 @@ public class GrantService {
         if (tokenOpt.isEmpty()) {
             return new UserGrant(
                 system.name(), system.type(), system.description(),
-                UserGrant.GrantStatus.NOT_CONNECTED, null, null, false, workloadId
+                UserGrant.GrantStatus.NOT_CONNECTED, null, null, false
             );
         }
 
@@ -89,13 +87,13 @@ public class GrantService {
         if (token.isExpired() && token.refreshToken() == null) {
             return new UserGrant(
                 system.name(), system.type(), system.description(),
-                UserGrant.GrantStatus.EXPIRED, null, null, false, workloadId
+                UserGrant.GrantStatus.EXPIRED, null, null, false
             );
         }
 
         return new UserGrant(
             system.name(), system.type(), system.description(),
-            UserGrant.GrantStatus.CONNECTED, null, token.expiresAt(), token.refreshToken() != null, workloadId
+            UserGrant.GrantStatus.CONNECTED, null, token.expiresAt(), token.refreshToken() != null
         );
     }
 }

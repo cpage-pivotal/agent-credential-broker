@@ -12,8 +12,7 @@ public record TargetSystem(
     String defaultScopes,
     String headerName,
     String headerFormat,
-    String apiKey,
-    boolean requireWorkloadIdentity
+    String apiKey
 ) {
 
     public boolean isOAuth() {

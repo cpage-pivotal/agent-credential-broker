@@ -29,8 +29,7 @@ public class TargetSystemRegistry {
                 entry.defaultScopes(),
                 entry.headerName(),
                 entry.headerFormat(),
-                entry.apiKey(),
-                entry.requireWorkloadIdentity() != null && entry.requireWorkloadIdentity()
+                entry.apiKey()
             );
             systems.put(entry.name(), system);
         }
