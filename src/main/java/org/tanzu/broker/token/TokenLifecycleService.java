@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Optional;
 
 @Service
@@ -29,6 +29,7 @@ public class TokenLifecycleService {
         this.oAuthFlowService = oAuthFlowService;
     }
 
+    @Transactional
     public Optional<StoredToken> getValidToken(String userId, String targetSystem) {
         return tokenStore.get(userId, targetSystem)
             .flatMap(token -> {
@@ -58,6 +59,7 @@ public class TokenLifecycleService {
     }
 
     @Scheduled(fixedRate = 300_000)
+    @Transactional
     public void cleanupExpiredTokens() {
         log.debug("Running token cleanup");
         tokenStore.removeExpired();

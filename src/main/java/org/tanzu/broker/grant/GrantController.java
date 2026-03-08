@@ -1,8 +1,6 @@
 package org.tanzu.broker.grant;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.tanzu.broker.oauth.OAuthFlowService;
-import org.tanzu.broker.token.TokenStore;
 import org.tanzu.broker.security.SecurityUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,14 +13,9 @@ import java.util.Map;
 public class GrantController {
 
     private final GrantService grantService;
-    private final OAuthFlowService oAuthFlowService;
-    private final TokenStore tokenStore;
 
-    public GrantController(GrantService grantService, OAuthFlowService oAuthFlowService,
-                           TokenStore tokenStore) {
+    public GrantController(GrantService grantService) {
         this.grantService = grantService;
-        this.oAuthFlowService = oAuthFlowService;
-        this.tokenStore = tokenStore;
     }
 
     @GetMapping

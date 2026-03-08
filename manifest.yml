@@ -7,6 +7,7 @@ applications:
       - java_buildpack_offline
     services:
       - agent-sso
+      - postgres-db
     env:
       JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
       BROKER_SIGNING_SECRET: ((BROKER_SIGNING_SECRET))

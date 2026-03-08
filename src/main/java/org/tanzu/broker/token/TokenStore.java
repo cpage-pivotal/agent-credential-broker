@@ -1,37 +1,48 @@
 package org.tanzu.broker.token;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
+import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@Transactional
 public class TokenStore {
 
-    private final Map<String, StoredToken> tokens = new ConcurrentHashMap<>();
+    private final StoredTokenRepository repository;
 
-    private String key(String userId, String targetSystem) {
-        return userId + ":" + targetSystem;
+    public TokenStore(StoredTokenRepository repository) {
+        this.repository = repository;
     }
 
     public void store(String userId, String targetSystem, StoredToken token) {
-        tokens.put(key(userId, targetSystem), token);
+        var id = new StoredTokenId(userId, targetSystem);
+        var entity = repository.findById(id).orElse(null);
+        if (entity != null) {
+            entity.updateFrom(token);
+            repository.save(entity);
+        } else {
+            repository.save(new StoredTokenEntity(userId, targetSystem, token));
+        }
     }
 
+    @Transactional(readOnly = true)
     public Optional<StoredToken> get(String userId, String targetSystem) {
-        return Optional.ofNullable(tokens.get(key(userId, targetSystem)));
+        return repository.findById(new StoredTokenId(userId, targetSystem))
+            .map(StoredTokenEntity::toStoredToken);
     }
 
     public void remove(String userId, String targetSystem) {
-        tokens.remove(key(userId, targetSystem));
+        repository.deleteById(new StoredTokenId(userId, targetSystem));
     }
 
+    @Transactional(readOnly = true)
     public boolean hasToken(String userId, String targetSystem) {
-        return tokens.containsKey(key(userId, targetSystem));
+        return repository.existsById(new StoredTokenId(userId, targetSystem));
     }
 
     public void removeExpired() {
-        tokens.entrySet().removeIf(e -> e.getValue().isExpired());
+        repository.deleteExpiredTokens(Instant.now());
     }
 }

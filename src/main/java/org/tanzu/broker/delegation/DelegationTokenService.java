@@ -8,13 +8,14 @@ import org.tanzu.broker.token.StoredToken;
 import org.tanzu.broker.token.TokenStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@Transactional
 public class DelegationTokenService {
 
     private final Algorithm signingAlgorithm;
@@ -22,15 +23,17 @@ public class DelegationTokenService {
     private final Duration defaultTtl;
     private final Duration maxTtl;
     private final TokenStore tokenStore;
-    private final Map<String, Delegation> delegations = new ConcurrentHashMap<>();
-    private final Set<String> revokedJtis = ConcurrentHashMap.newKeySet();
+    private final DelegationRepository delegationRepository;
+    private final RevokedJtiRepository revokedJtiRepository;
 
     public DelegationTokenService(
         @Value("${broker.delegation.signing-secret}") String signingSecret,
         @Value("${broker.delegation.previous-signing-secret:}") String previousSigningSecret,
         @Value("${broker.delegation.default-ttl:72h}") Duration defaultTtl,
         @Value("${broker.delegation.max-ttl:720h}") Duration maxTtl,
-        TokenStore tokenStore
+        TokenStore tokenStore,
+        DelegationRepository delegationRepository,
+        RevokedJtiRepository revokedJtiRepository
     ) {
         this.signingAlgorithm = Algorithm.HMAC256(signingSecret);
         this.previousAlgorithm = previousSigningSecret != null && !previousSigningSecret.isBlank()
@@ -38,6 +41,8 @@ public class DelegationTokenService {
         this.defaultTtl = defaultTtl;
         this.maxTtl = maxTtl;
         this.tokenStore = tokenStore;
+        this.delegationRepository = delegationRepository;
+        this.revokedJtiRepository = revokedJtiRepository;
     }
 
     public record DelegationTokenResult(Delegation delegation, String token) {}
@@ -78,10 +83,11 @@ public class DelegationTokenService {
             .withJWTId(jti)
             .sign(signingAlgorithm);
 
-        delegations.put(jti, delegation);
+        delegationRepository.save(new DelegationEntity(delegation));
         return new DelegationTokenResult(delegation, token);
     }
 
+    @Transactional(readOnly = true)
     public DecodedJWT validateDelegationToken(String token) {
         try {
             return JWT.require(signingAlgorithm)
@@ -101,40 +107,44 @@ public class DelegationTokenService {
         }
     }
 
+    @Transactional(readOnly = true)
     public boolean isRevoked(String jti) {
-        return revokedJtis.contains(jti);
+        return revokedJtiRepository.existsById(jti);
     }
 
     public void revoke(String delegationId, String userId) {
-        var delegation = delegations.get(delegationId);
-        if (delegation != null && delegation.userId().equals(userId)) {
-            revokedJtis.add(delegationId);
-            delegations.put(delegationId, new Delegation(
-                delegation.id(), delegation.userId(), delegation.agentId(),
-                delegation.allowedSystems(), delegation.createdAt(), delegation.expiresAt(), true
-            ));
-        }
+        delegationRepository.findById(delegationId)
+            .filter(entity -> entity.getUserId().equals(userId))
+            .ifPresent(entity -> {
+                entity.markRevoked();
+                delegationRepository.save(entity);
+                revokedJtiRepository.save(new RevokedJtiEntity(delegationId, entity.getExpiresAt()));
+            });
     }
 
     public DelegationTokenResult refresh(String delegationId, String userId) {
-        var delegation = delegations.get(delegationId);
-        if (delegation == null || !delegation.userId().equals(userId) || delegation.revoked()) {
-            throw new IllegalArgumentException("Delegation not found or revoked");
-        }
-        revokedJtis.add(delegationId);
+        var entity = delegationRepository.findById(delegationId)
+            .filter(e -> e.getUserId().equals(userId) && !e.isRevoked())
+            .orElseThrow(() -> new IllegalArgumentException("Delegation not found or revoked"));
+
+        var delegation = entity.toDelegation();
+        revokedJtiRepository.save(new RevokedJtiEntity(delegationId, entity.getExpiresAt()));
+        entity.markRevoked();
+        delegationRepository.save(entity);
+
         return createDelegation(userId, delegation.agentId(), delegation.allowedSystems(), null);
     }
 
+    @Transactional(readOnly = true)
     public List<Delegation> listByUser(String userId) {
-        return delegations.values().stream()
-            .filter(d -> d.userId().equals(userId))
-            .sorted(Comparator.comparing(Delegation::createdAt).reversed())
+        return delegationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+            .map(DelegationEntity::toDelegation)
             .toList();
     }
 
     public void cleanupExpired() {
         var now = Instant.now();
-        delegations.entrySet().removeIf(e -> e.getValue().expiresAt().isBefore(now));
-        // Revoked JTIs are cleaned when their delegation expires
+        delegationRepository.deleteExpired(now);
+        revokedJtiRepository.deleteExpired(now);
     }
 }
