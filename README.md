@@ -2,12 +2,15 @@
 
 A standalone Spring Boot + Angular service that centralizes credential acquisition for AI agents. Users pre-authorize access to target systems (OAuth, user-provided tokens, static API keys) through the broker's UI, and agents authenticate using delegation tokens (signed JWTs) to request credentials at runtime.
 
+**New here?** See the [Getting Started Guide](docs/getting-started.md) for an overview of how the broker integrates with the Goose Buildpack and step-by-step examples for all four target system types.
+
 ## Architecture
 
 - **Spring Boot 3.5** backend with Spring Security OAuth2 (SSO login via Tanzu SSO / `p-identity`)
 - **Angular 21** Material UI bundled into the jar via `frontend-maven-plugin`
 - **Delegation tokens**: HMAC-SHA256 signed JWTs encoding user, agent, allowed systems, and expiry
 - **Two-layer authorization**: Grants (per-user, per-system) + Delegations (per-user, per-agent, time-limited)
+- **PostgreSQL** for persistent storage of grants and delegations
 
 ## Building
 
@@ -22,7 +25,8 @@ This runs the full pipeline: install Node.js, `npm ci`, `ng build`, compile Java
 ### Prerequisites
 
 1. A `p-identity` service instance with the `uaa` plan (e.g., `agent-sso`)
-2. A `vars.yaml` file with secrets (not checked into source control)
+2. A PostgreSQL service instance (e.g., `agent-db`) — used for persistent storage of grants, delegations, and token metadata
+3. A `vars.yaml` file with secrets (not checked into source control)
 
 ### SSO Tile Configuration
 
@@ -42,13 +46,14 @@ that cf-auth-mcp advertises via RFC 9728.
 
 #### Initial Setup
 
-1. Create the service instance (if it doesn't already exist):
+1. Create the service instances (if they don't already exist):
 
    ```bash
    cf create-service p-identity uaa agent-sso
+   cf create-service postgres on-demand-postgres-db agent-db
    ```
 
-2. Push the app to create the service binding:
+2. Push the app to create the service bindings:
 
    ```bash
    mvn package
@@ -83,6 +88,11 @@ creates a new one with a new App ID, invalidating the SSO tile configuration.
 | Variable | Description |
 |---|---|
 | `BROKER_SIGNING_SECRET` | HMAC-SHA256 secret for signing delegation tokens |
+| `DATABASE_URL` | PostgreSQL JDBC URL (default: `jdbc:postgresql://localhost:5432/broker`) |
+| `DATABASE_USERNAME` | Database username (default: `broker`) |
+| `DATABASE_PASSWORD` | Database password (default: `broker`) |
+
+When deploying to Cloud Foundry with a bound PostgreSQL service, `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` are typically injected automatically via `VCAP_SERVICES` bindings or Spring Cloud Connectors — verify with your platform team.
 
 Additional environment variables depend on which target systems are configured
 in `application.yml`. Each target system that uses OAuth references its client
@@ -92,11 +102,15 @@ directly, requiring no environment variables.
 
 ### vars.yaml
 
-Create a `vars.yaml` file (git-ignored) with the signing secret and any
-target-system credentials not sourced from service bindings:
+Create a `vars.yaml` file (git-ignored) with the signing secret, database credentials (if not injected by the platform), and any target-system credentials not sourced from service bindings:
 
 ```yaml
 BROKER_SIGNING_SECRET: <random-base64-string>
+
+# Database (if not injected via VCAP_SERVICES)
+DATABASE_URL: jdbc:postgresql://<host>:5432/broker
+DATABASE_USERNAME: broker
+DATABASE_PASSWORD: <db-password>
 
 # Target system credentials (add as needed)
 GITHUB_OAUTH_CLIENT_ID: <from-github-oauth-app>
@@ -105,9 +119,7 @@ GITHUB_OAUTH_CLIENT_SECRET: <from-github-oauth-app>
 
 ### Target System Configuration
 
-Configure target systems in `application.yml` under `broker.target-systems`.
-Each system specifies its OAuth discovery method, client credentials (resolved
-from environment variables), and default scopes.
+Target systems are declared in `src/main/resources/application.yml` under `broker.target-systems`. See the [Getting Started Guide](docs/getting-started.md) for the full field reference and examples of all four supported types (`OAUTH_AUTHORIZATION_CODE`, `OAUTH_CLIENT_CREDENTIALS`, `USER_PROVIDED_TOKEN`, `STATIC_API_KEY`).
 
 ## API
 
@@ -140,4 +152,13 @@ mvn spring-boot:run
 # Frontend (with proxy to backend)
 cd src/main/frontend
 npm start
+```
+
+A local PostgreSQL instance is required. The defaults expect a database named `broker` with username `broker` and password `broker` on `localhost:5432`. You can override these with environment variables:
+
+```bash
+export DATABASE_URL=jdbc:postgresql://localhost:5432/mydb
+export DATABASE_USERNAME=myuser
+export DATABASE_PASSWORD=mypassword
+mvn spring-boot:run
 ```
