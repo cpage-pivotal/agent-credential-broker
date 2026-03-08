@@ -27,6 +27,7 @@ public record TargetSystemProperties(
         String defaultScopes,
         String headerName,
         String headerFormat,
-        String apiKey
+        String apiKey,
+        Boolean requireWorkloadIdentity
     ) {}
 }

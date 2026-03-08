@@ -10,6 +10,7 @@ export interface UserGrant {
   grantedAt: string | null;
   expiresAt: string | null;
   hasRefreshToken: boolean;
+  requireWorkloadIdentity: boolean;
 }
 
 @Injectable({

@@ -1,7 +1,5 @@
 package org.tanzu.broker.targetsystem;
 
-import java.util.List;
-
 public record TargetSystem(
     String name,
     TargetSystemType type,
@@ -14,7 +12,8 @@ public record TargetSystem(
     String defaultScopes,
     String headerName,
     String headerFormat,
-    String apiKey
+    String apiKey,
+    boolean requireWorkloadIdentity
 ) {
 
     public boolean isOAuth() {

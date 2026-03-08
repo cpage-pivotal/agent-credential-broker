@@ -7,7 +7,6 @@ import org.tanzu.broker.token.StoredToken;
 import org.tanzu.broker.token.TokenStore;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -69,10 +68,12 @@ public class GrantService {
     }
 
     private UserGrant toGrant(String userId, TargetSystem system) {
+        boolean workloadId = system.requireWorkloadIdentity();
+
         if (system.isStaticApiKey()) {
             return new UserGrant(
                 system.name(), system.type(), system.description(),
-                UserGrant.GrantStatus.CONNECTED, null, null, false
+                UserGrant.GrantStatus.CONNECTED, null, null, false, workloadId
             );
         }
 
@@ -80,7 +81,7 @@ public class GrantService {
         if (tokenOpt.isEmpty()) {
             return new UserGrant(
                 system.name(), system.type(), system.description(),
-                UserGrant.GrantStatus.NOT_CONNECTED, null, null, false
+                UserGrant.GrantStatus.NOT_CONNECTED, null, null, false, workloadId
             );
         }
 
@@ -88,13 +89,13 @@ public class GrantService {
         if (token.isExpired() && token.refreshToken() == null) {
             return new UserGrant(
                 system.name(), system.type(), system.description(),
-                UserGrant.GrantStatus.EXPIRED, null, null, false
+                UserGrant.GrantStatus.EXPIRED, null, null, false, workloadId
             );
         }
 
         return new UserGrant(
             system.name(), system.type(), system.description(),
-            UserGrant.GrantStatus.CONNECTED, null, token.expiresAt(), token.refreshToken() != null
+            UserGrant.GrantStatus.CONNECTED, null, token.expiresAt(), token.refreshToken() != null, workloadId
         );
     }
 }

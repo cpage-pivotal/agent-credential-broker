@@ -6,6 +6,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { LowerCasePipe } from '@angular/common';
 import { GrantService, UserGrant } from '../../services/grant.service';
 import { TokenEntryDialogComponent } from '../token-entry-dialog/token-entry-dialog.component';
@@ -20,6 +21,7 @@ import { TokenEntryDialogComponent } from '../token-entry-dialog/token-entry-dia
     MatProgressSpinnerModule,
     MatDialogModule,
     MatSnackBarModule,
+    MatTooltipModule,
     LowerCasePipe,
   ],
   templateUrl: './grants-dashboard.component.html',

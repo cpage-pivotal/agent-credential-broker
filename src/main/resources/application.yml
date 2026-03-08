@@ -41,6 +41,7 @@ broker:
       mcpServerUrl: "https://api.githubcopilot.com/mcp/"
       discovery: rfc9728
       defaultScopes: "repo read:org user:email"
+      requireWorkloadIdentity: true
     - name: cloud-foundry
       type: OAUTH_AUTHORIZATION_CODE
       description: Cloud Foundry MCP Server
@@ -49,3 +50,4 @@ broker:
       mcpServerUrl: "https://cf-auth-mcp.apps.tas-ndc.kuhn-labs.com/mcp"
       discovery: rfc9728
       defaultScopes: "openid cloud_controller.read cloud_controller.write"
+      requireWorkloadIdentity: true
