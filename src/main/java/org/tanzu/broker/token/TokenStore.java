@@ -30,4 +30,8 @@ public class TokenStore {
     public boolean hasToken(String userId, String targetSystem) {
         return tokens.containsKey(key(userId, targetSystem));
     }
+
+    public void removeExpired() {
+        tokens.entrySet().removeIf(e -> e.getValue().isExpired());
+    }
 }

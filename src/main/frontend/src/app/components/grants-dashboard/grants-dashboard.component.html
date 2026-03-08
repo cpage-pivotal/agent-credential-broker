@@ -36,6 +36,17 @@
               </mat-icon>
               <span class="status-text">{{ grant.status | lowercase }}</span>
             </div>
+            @if (grant.status === 'CONNECTED' && grant.expiresAt) {
+              <div class="expiry-row">
+                <span class="expires-text">{{ formatExpiry(grant.expiresAt) }}</span>
+                @if (grant.hasRefreshToken) {
+                  <span class="refresh-badge" title="Token will be renewed automatically">
+                    <mat-icon class="refresh-icon">autorenew</mat-icon>
+                    auto-renew
+                  </span>
+                }
+              </div>
+            }
           </mat-card-content>
 
           <mat-card-actions align="end">

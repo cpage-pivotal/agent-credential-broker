@@ -60,5 +60,6 @@ public class TokenLifecycleService {
     @Scheduled(fixedRate = 300_000)
     public void cleanupExpiredTokens() {
         log.debug("Running token cleanup");
+        tokenStore.removeExpired();
     }
 }

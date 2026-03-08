@@ -72,7 +72,7 @@ public class GrantService {
         if (system.isStaticApiKey()) {
             return new UserGrant(
                 system.name(), system.type(), system.description(),
-                UserGrant.GrantStatus.CONNECTED, null
+                UserGrant.GrantStatus.CONNECTED, null, null, false
             );
         }
 
@@ -80,7 +80,7 @@ public class GrantService {
         if (tokenOpt.isEmpty()) {
             return new UserGrant(
                 system.name(), system.type(), system.description(),
-                UserGrant.GrantStatus.NOT_CONNECTED, null
+                UserGrant.GrantStatus.NOT_CONNECTED, null, null, false
             );
         }
 
@@ -88,13 +88,13 @@ public class GrantService {
         if (token.isExpired() && token.refreshToken() == null) {
             return new UserGrant(
                 system.name(), system.type(), system.description(),
-                UserGrant.GrantStatus.EXPIRED, null
+                UserGrant.GrantStatus.EXPIRED, null, null, false
             );
         }
 
         return new UserGrant(
             system.name(), system.type(), system.description(),
-            UserGrant.GrantStatus.CONNECTED, null
+            UserGrant.GrantStatus.CONNECTED, null, token.expiresAt(), token.refreshToken() != null
         );
     }
 }

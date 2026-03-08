@@ -122,6 +122,35 @@
     text-transform: capitalize;
   }
 
+  .expiry-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .expires-text {
+    font: var(--mat-sys-label-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .refresh-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font: var(--mat-sys-label-small);
+    background-color: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+  }
+
+  .refresh-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+  }
+
   .auto-badge {
     font: var(--mat-sys-label-medium);
     color: var(--mat-sys-on-surface-variant);

@@ -8,6 +8,8 @@ export interface UserGrant {
   description: string | null;
   status: 'CONNECTED' | 'NOT_CONNECTED' | 'EXPIRED';
   grantedAt: string | null;
+  expiresAt: string | null;
+  hasRefreshToken: boolean;
 }
 
 @Injectable({

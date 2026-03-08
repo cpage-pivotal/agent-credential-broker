@@ -9,7 +9,9 @@ public record UserGrant(
     TargetSystemType type,
     String description,
     GrantStatus status,
-    Instant grantedAt
+    Instant grantedAt,
+    Instant expiresAt,
+    boolean hasRefreshToken
 ) {
     public enum GrantStatus {
         CONNECTED, NOT_CONNECTED, EXPIRED

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, DestroyRef, signal, inject } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -29,12 +29,16 @@ export class GrantsDashboardComponent implements OnInit {
   private grantService = inject(GrantService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  private destroyRef = inject(DestroyRef);
 
   protected readonly grants = signal<UserGrant[]>([]);
   protected readonly loading = signal(true);
+  private readonly ticker = signal(0);
 
   ngOnInit(): void {
     this.loadGrants();
+    const id = setInterval(() => this.ticker.update(n => n + 1), 60_000);
+    this.destroyRef.onDestroy(() => clearInterval(id));
   }
 
   async loadGrants(): Promise<void> {
@@ -143,5 +147,18 @@ export class GrantsDashboardComponent implements OnInit {
       default:
         return 'disconnected';
     }
+  }
+
+  formatExpiry(expiresAt: string): string {
+    this.ticker(); // reactive dependency — re-evaluated on each 60s tick
+    const expiry = new Date(expiresAt);
+    const diffMs = expiry.getTime() - Date.now();
+    if (diffMs <= 0) return 'expired';
+    const diffMin = Math.floor(diffMs / 60_000);
+    if (diffMin < 60) return `expires in ${diffMin}m`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `expires in ${diffHr}h ${diffMin % 60}m`;
+    const diffDays = Math.floor(diffHr / 24);
+    return `expires in ${diffDays}d ${diffHr % 24}h`;
   }
 }

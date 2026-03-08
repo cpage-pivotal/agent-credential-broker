@@ -4,6 +4,8 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import org.tanzu.broker.token.StoredToken;
+import org.tanzu.broker.token.TokenStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,7 @@ public class DelegationTokenService {
     private final Algorithm previousAlgorithm;
     private final Duration defaultTtl;
     private final Duration maxTtl;
+    private final TokenStore tokenStore;
     private final Map<String, Delegation> delegations = new ConcurrentHashMap<>();
     private final Set<String> revokedJtis = ConcurrentHashMap.newKeySet();
 
@@ -26,13 +29,15 @@ public class DelegationTokenService {
         @Value("${broker.delegation.signing-secret}") String signingSecret,
         @Value("${broker.delegation.previous-signing-secret:}") String previousSigningSecret,
         @Value("${broker.delegation.default-ttl:72h}") Duration defaultTtl,
-        @Value("${broker.delegation.max-ttl:720h}") Duration maxTtl
+        @Value("${broker.delegation.max-ttl:720h}") Duration maxTtl,
+        TokenStore tokenStore
     ) {
         this.signingAlgorithm = Algorithm.HMAC256(signingSecret);
         this.previousAlgorithm = previousSigningSecret != null && !previousSigningSecret.isBlank()
             ? Algorithm.HMAC256(previousSigningSecret) : null;
         this.defaultTtl = defaultTtl;
         this.maxTtl = maxTtl;
+        this.tokenStore = tokenStore;
     }
 
     public record DelegationTokenResult(Delegation delegation, String token) {}
@@ -46,6 +51,17 @@ public class DelegationTokenService {
         }
 
         var now = Instant.now();
+
+        Instant requestedExpiry = now.plus(effectiveTtl);
+        Instant cappedExpiry = allowedSystems.stream()
+            .flatMap(s -> tokenStore.get(userId, s).stream())
+            .filter(t -> t.refreshToken() == null)
+            .map(StoredToken::expiresAt)
+            .filter(Objects::nonNull)
+            .filter(exp -> exp.isBefore(requestedExpiry))
+            .min(Comparator.naturalOrder())
+            .orElse(requestedExpiry);
+        effectiveTtl = Duration.between(now, cappedExpiry);
         var jti = "deleg-" + UUID.randomUUID().toString().substring(0, 8);
 
         var delegation = new Delegation(
