@@ -2,7 +2,7 @@
 
 A standalone Spring Boot + Angular service that centralizes credential management for AI agents. Instead of embedding secrets in agent applications, users pre-authorize the broker to hold credentials on their behalf, and agents exchange a signed delegation token for a short-lived credential at runtime.
 
-![Screenshot](docs/screenshot.png)
+![Screenshot](images/screenshot.png)
 ## How It Works
 
 1. **A user logs into the broker UI** and grants it access to each target system they want their agents to use — completing an OAuth consent flow, or pasting in a personal access token.
