@@ -1,8 +1,19 @@
 # Agent Credential Broker
 
-A standalone Spring Boot + Angular service that centralizes credential acquisition for AI agents. Users pre-authorize access to target systems (OAuth, user-provided tokens, static API keys) through the broker's UI, and agents authenticate using delegation tokens (signed JWTs) to request credentials at runtime.
+A standalone Spring Boot + Angular service that centralizes credential management for AI agents. Instead of embedding secrets in agent applications, users pre-authorize the broker to hold credentials on their behalf, and agents exchange a signed delegation token for a short-lived credential at runtime.
 
-**New here?** See the [Getting Started Guide](docs/getting-started.md) for an overview of how the broker integrates with the Goose Buildpack and step-by-step examples for all four target system types.
+![Screenshot](docs/screenshot.png)
+## How It Works
+
+1. **A user logs into the broker UI** and grants it access to each target system they want their agents to use — completing an OAuth consent flow, or pasting in a personal access token.
+
+2. **The user creates a delegation token** — a signed JWT scoped to a specific agent, a subset of target systems, and a time window. This token is injected into the agent application (typically via `cf set-env` or `vars.yaml`).
+
+3. **At runtime, the agent calls `POST /api/credentials/request`**, presenting its delegation token. The broker validates the delegation, checks the user's grant, and returns a ready-to-use credential.
+
+Agents never handle user passwords or long-lived secrets. Users retain full visibility and control over which agents can access which systems.
+
+> **New here?** See the [Getting Started Guide](docs/getting-started.md) for step-by-step setup and examples for all four credential types.
 
 ## Architecture
 
@@ -12,76 +23,39 @@ A standalone Spring Boot + Angular service that centralizes credential acquisiti
 - **Two-layer authorization**: Grants (per-user, per-system) + Delegations (per-user, per-agent, time-limited)
 - **PostgreSQL** for persistent storage of grants and delegations
 
-## Building
-
-```bash
-mvn package
-```
-
-This runs the full pipeline: install Node.js, `npm ci`, `ng build`, compile Java, copy Angular output into `static/`, package the fat jar.
-
 ## Deployment
 
 ### Prerequisites
 
 1. A `p-identity` service instance with the `uaa` plan (e.g., `agent-sso`)
-2. A PostgreSQL service instance (e.g., `agent-db`) — used for persistent storage of grants, delegations, and token metadata
+2. A PostgreSQL service instance (e.g., `agent-db`)
 3. A `vars.yaml` file with secrets (not checked into source control)
+
+### Build and Push
+
+```bash
+mvn package
+cf push --vars-file=vars.yaml
+```
+
+`mvn package` runs the full pipeline: installs Node.js, runs `npm ci` and `ng build`, compiles Java, copies Angular output into `static/`, and packages the fat jar.
 
 ### SSO Tile Configuration
 
-The broker uses Tanzu SSO (`p-identity`) for two purposes:
+After the first push, find **agent-credential-broker** in the SSO tile and configure:
 
-1. **UI login** — Spring Security OAuth2 Login, using credentials from the
-   service binding (`VCAP_SERVICES`)
-2. **MCP target system OAuth** — The broker acts as an OAuth client to obtain
-   tokens for protected MCP servers like cf-auth-mcp
+- **Identity Providers**: Check "Internal User Store" (or whichever providers your users authenticate with)
+- **Redirect URI Allowlist**: Add the app's base URL — the SSO tile supports partial URI matching, so this covers all callback paths:
+  ```
+  https://agent-credential-broker.apps.example.com
+  ```
+- **Scopes**: Add any scopes the broker needs to request on behalf of users. For the Cloud Foundry MCP server:
+  - `cloud_controller.read`
+  - `cloud_controller.write`
 
-Both use the same SSO client (the broker's own App ID). The Cloud Foundry
-target system reads `client_id` and `client_secret` directly from
-`VCAP_SERVICES` via `${vcap.services.agent-sso.credentials.client_id}`, so
-there are no separate environment variables to keep in sync. The `uaa` plan
-registers clients directly in the system UAA — the same authorization server
-that cf-auth-mcp advertises via RFC 9728.
+The broker uses the `p-identity` binding for two purposes: UI login (OAuth2 Login) and as the OAuth client for the Cloud Foundry target system. Both read `client_id` and `client_secret` directly from `VCAP_SERVICES` — no manual sync required. If you regenerate the App Secret in the SSO tile, run `cf push` and the updated credentials flow through automatically.
 
-#### Initial Setup
-
-1. Create the service instances (if they don't already exist):
-
-   ```bash
-   cf create-service p-identity uaa agent-sso
-   cf create-service postgres on-demand-postgres-db agent-db
-   ```
-
-2. Push the app to create the service bindings:
-
-   ```bash
-   mvn package
-   cf push --vars-file=vars.yaml
-   ```
-
-3. In the SSO tile, find **agent-credential-broker** and configure:
-
-   - **Identity Providers**: Check "Internal User Store" (or whichever
-     providers your users authenticate with)
-   - **Redirect URI Allowlist**: Add the app's base URL. The SSO tile supports
-     partial URI matching, so the base URL covers all callback paths:
-     ```
-     https://agent-credential-broker.apps.example.com
-     ```
-   - **Scopes**: Add any scopes the broker needs to request on behalf of users.
-     For the Cloud Foundry MCP server, add:
-     - `cloud_controller.read`
-     - `cloud_controller.write`
-
-#### Credential Sync
-
-The Cloud Foundry target system credentials are read from `VCAP_SERVICES`
-automatically — no manual sync required. If you regenerate the App Secret in
-the SSO tile, just run `cf push` and the updated credentials flow through.
-
-Do **not** unbind and rebind the service — this deletes the existing client and
-creates a new one with a new App ID, invalidating the SSO tile configuration.
+> **Do not** unbind and rebind the service — this deletes the existing client and creates a new one with a new App ID, invalidating the SSO tile configuration.
 
 ### Required Environment Variables
 
@@ -92,17 +66,11 @@ creates a new one with a new App ID, invalidating the SSO tile configuration.
 | `DATABASE_USERNAME` | Database username (default: `broker`) |
 | `DATABASE_PASSWORD` | Database password (default: `broker`) |
 
-When deploying to Cloud Foundry with a bound PostgreSQL service, `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` are typically injected automatically via `VCAP_SERVICES` bindings or Spring Cloud Connectors — verify with your platform team.
+When bound to a PostgreSQL service, `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` are typically injected automatically — verify with your platform team.
 
-Additional environment variables depend on which target systems are configured
-in `application.yml`. Each target system that uses OAuth references its client
-credentials via `${...}` placeholders. Target systems that share the SSO
-service binding (like Cloud Foundry) can read credentials from `VCAP_SERVICES`
-directly, requiring no environment variables.
+Additional variables depend on which target systems are configured. Each OAuth target system references its client credentials via `${...}` placeholders in `application.yml`. Systems using the SSO service binding read credentials from `VCAP_SERVICES` directly and require no additional variables.
 
 ### vars.yaml
-
-Create a `vars.yaml` file (git-ignored) with the signing secret, database credentials (if not injected by the platform), and any target-system credentials not sourced from service bindings:
 
 ```yaml
 BROKER_SIGNING_SECRET: <random-base64-string>
@@ -123,38 +91,46 @@ Target systems are declared in `src/main/resources/application.yml` under `broke
 
 ## API
 
-### Credential Access (called by agents)
+### Credential Access — called by agents
 
-- `POST /api/credentials/request` — Bearer delegation token, body: `{targetSystem, scope}`
-- `GET /api/credentials/status` — Bearer delegation token, returns grant status
+| Method | Path | Auth |
+|---|---|---|
+| `POST` | `/api/credentials/request` | Bearer delegation token |
+| `GET` | `/api/credentials/status` | Bearer delegation token |
 
-### Grant Management (authenticated UI)
+### Grant Management — authenticated UI
 
-- `GET /api/grants` — list grants for current user
-- `POST /api/grants/{system}/authorize` — initiate OAuth flow
-- `POST /api/grants/{system}/token` — store user-provided token
-- `DELETE /api/grants/{system}` — revoke grant
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/grants` | List grants for current user |
+| `POST` | `/api/grants/{system}/authorize` | Initiate OAuth flow |
+| `POST` | `/api/grants/{system}/token` | Store user-provided token |
+| `DELETE` | `/api/grants/{system}` | Revoke grant |
 
-### Delegation Management (authenticated UI or inter-app)
+### Delegation Management — authenticated UI or inter-app
 
-- `POST /api/delegations` — create delegation token (SSO session)
-- `POST /api/delegations/inter-app` — create delegation token (UAA ID token)
-- `GET /api/delegations` — list delegations
-- `DELETE /api/delegations/{id}` — revoke
-- `POST /api/delegations/{id}/refresh` — refresh with new expiry
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/delegations` | Create delegation token (SSO session) |
+| `POST` | `/api/delegations/inter-app` | Create delegation token (UAA ID token) |
+| `GET` | `/api/delegations` | List delegations |
+| `DELETE` | `/api/delegations/{id}` | Revoke |
+| `POST` | `/api/delegations/{id}/refresh` | Refresh with new expiry |
 
 ## Local Development
+
+A local PostgreSQL instance is required. The defaults expect a database named `broker` with username `broker` and password `broker` on `localhost:5432`.
 
 ```bash
 # Backend
 mvn spring-boot:run
 
-# Frontend (with proxy to backend)
+# Frontend (with proxy to backend at :4200 → :8080)
 cd src/main/frontend
 npm start
 ```
 
-A local PostgreSQL instance is required. The defaults expect a database named `broker` with username `broker` and password `broker` on `localhost:5432`. You can override these with environment variables:
+Override database defaults with environment variables:
 
 ```bash
 export DATABASE_URL=jdbc:postgresql://localhost:5432/mydb
