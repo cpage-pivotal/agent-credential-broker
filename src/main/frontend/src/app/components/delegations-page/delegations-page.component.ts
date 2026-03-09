@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { DatePipe } from '@angular/common';
 import {
   DelegationService,
@@ -33,6 +34,7 @@ import { TargetSystemService, TargetSystem } from '../../services/target-system.
     MatSnackBarModule,
     MatDividerModule,
     MatTooltipModule,
+    MatExpansionModule,
     DatePipe,
   ],
   templateUrl: './delegations-page.component.html',
@@ -47,6 +49,14 @@ export class DelegationsPageComponent implements OnInit {
   protected readonly targetSystems = signal<TargetSystem[]>([]);
   protected readonly loading = signal(true);
   protected readonly newlyCreatedToken = signal<string | null>(null);
+
+  protected readonly activeDelegations = computed(() =>
+    this.delegations().filter(d => !d.revoked && !this.isExpired(d))
+  );
+
+  protected readonly inactiveDelegations = computed(() =>
+    this.delegations().filter(d => d.revoked || this.isExpired(d))
+  );
 
   protected agentId = '';
   protected selectedSystems: string[] = [];

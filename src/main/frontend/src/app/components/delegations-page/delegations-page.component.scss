@@ -112,9 +112,12 @@
   gap: 12px;
 }
 
+.inactive-accordion {
+  margin-top: 24px;
+}
+
 .delegation-card {
-  &.revoked,
-  &.expired {
+  &.inactive {
     opacity: 0.65;
   }
 }
