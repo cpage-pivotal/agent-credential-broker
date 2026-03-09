@@ -57,16 +57,23 @@ The broker uses the `p-identity` binding for two purposes: UI login (OAuth2 Logi
 
 > **Do not** unbind and rebind the service — this deletes the existing client and creates a new one with a new App ID, invalidating the SSO tile configuration.
 
-### Required Environment Variables
+### Environment Variables
+
+**Required:**
 
 | Variable | Description |
 |---|---|
 | `BROKER_SIGNING_SECRET` | HMAC-SHA256 secret for signing delegation tokens |
-| `DATABASE_URL` | PostgreSQL JDBC URL (default: `jdbc:postgresql://localhost:5432/broker`) |
-| `DATABASE_USERNAME` | Database username (default: `broker`) |
-| `DATABASE_PASSWORD` | Database password (default: `broker`) |
 
-When bound to a PostgreSQL service, `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` are typically injected automatically — verify with your platform team.
+**Required without a bound PostgreSQL service:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `jdbc:postgresql://localhost:5432/broker` | PostgreSQL JDBC URL |
+| `DATABASE_USERNAME` | `broker` | Database username |
+| `DATABASE_PASSWORD` | `broker` | Database password |
+
+When a PostgreSQL service is bound, these are typically injected automatically — verify with your platform team.
 
 Additional variables depend on which target systems are configured. Each OAuth target system references its client credentials via `${...}` placeholders in `application.yml`. Systems using the SSO service binding read credentials from `VCAP_SERVICES` directly and require no additional variables.
 
