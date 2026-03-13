@@ -6,7 +6,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/delegations")
@@ -20,23 +19,6 @@ public class DelegationController {
 
     @PostMapping
     public ResponseEntity<DelegationResponse> createDelegation(@RequestBody DelegationRequest request) {
-        String userId = SecurityUtils.currentUserId();
-        Duration ttl = request.ttlHours() != null ? Duration.ofHours(request.ttlHours()) : null;
-
-        var result = delegationTokenService.createDelegation(
-            userId, request.agentId(), request.allowedSystems(), ttl
-        );
-
-        return ResponseEntity.ok(DelegationResponse.fromDelegation(result.delegation(), result.token()));
-    }
-
-    @PostMapping("/inter-app")
-    public ResponseEntity<DelegationResponse> createDelegationInterApp(
-        @RequestBody DelegationRequest request,
-        @RequestHeader("Authorization") String authHeader
-    ) {
-        // userId is extracted from the validated UAA ID token (JWT sub claim)
-        // Spring Security's oauth2ResourceServer validates the token via shared JWKS
         String userId = SecurityUtils.currentUserId();
         Duration ttl = request.ttlHours() != null ? Duration.ofHours(request.ttlHours()) : null;
 

@@ -7,6 +7,9 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -26,12 +29,15 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
-    SecurityFilterChain delegationInterAppFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain tokenExchangeFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/api/delegations/inter-app")
+            .securityMatcher("/api/delegations/token")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .oauth2ResourceServer(rs -> rs.jwt(Customizer.withDefaults()));
+            .x509(x509 -> x509
+                .subjectPrincipalRegex("CN=(.*?)(?:,|$)")
+                .userDetailsService(workloadIdentityUserDetailsService()))
+            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated());
         return http.build();
     }
 
@@ -58,5 +64,10 @@ public class SecurityConfig {
                 .logoutSuccessUrl("/")
             );
         return http.build();
+    }
+
+    private UserDetailsService workloadIdentityUserDetailsService() {
+        return username -> new User(username, "",
+                AuthorityUtils.createAuthorityList("ROLE_WORKLOAD"));
     }
 }
