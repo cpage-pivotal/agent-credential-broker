@@ -120,8 +120,20 @@ The user completes an interactive OAuth consent flow. The broker stores the resu
 |---|---|---|
 | `clientId` | Yes | OAuth client ID registered with the authorization server |
 | `clientSecret` | Yes | OAuth client secret |
-| `discovery` | Recommended | Set to `rfc9728` to auto-discover endpoints from the MCP server's `/.well-known/oauth-authorization-server` |
-| `authorizationServer` | If no discovery | Explicit authorization server base URL |
+| `discovery` | Recommended | OAuth endpoint discovery strategy. The only supported value is `rfc9728` (see below) |
+| `authorizationServer` | If no discovery | Explicit authorization server base URL (e.g., `https://auth.example.com`) |
+
+### OAuth Endpoint Discovery
+
+The broker needs to know the authorization and token endpoints for each OAuth target system. These are resolved using the following priority:
+
+1. **`authorizationServer`** — If set, the broker fetches metadata directly from the server's `/.well-known/oauth-authorization-server` or `/.well-known/openid-configuration` endpoint. No probing of the MCP server is needed.
+
+2. **`discovery: rfc9728`** — If `authorizationServer` is not set and `discovery` is `rfc9728`, the broker performs [RFC 9728 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728) discovery against the `mcpServerUrl`. This works by probing the MCP server for a `401` response, parsing the `WWW-Authenticate` header to find the `resource_metadata` URL, fetching the Protected Resource Metadata document to identify the authorization server, and then fetching that server's standard OAuth metadata.
+
+3. **Neither set** — If neither `authorizationServer` nor `discovery` is configured, the broker cannot discover OAuth endpoints and the grant flow will fail.
+
+`rfc9728` is the only supported value for `discovery`. Most MCP servers that require OAuth will support RFC 9728 discovery, making it the recommended approach when you don't know the authorization server URL ahead of time.
 
 ### Example: GitHub Copilot MCP Server
 

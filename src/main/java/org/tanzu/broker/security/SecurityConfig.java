@@ -1,9 +1,9 @@
 package org.tanzu.broker.security;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -11,12 +11,16 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final WorkloadIdentityExtractor workloadIdentityExtractor;
+
+    @Autowired(required = false)
+    private CorsConfigurationSource corsConfigurationSource;
 
     public SecurityConfig(WorkloadIdentityExtractor workloadIdentityExtractor) {
         this.workloadIdentityExtractor = workloadIdentityExtractor;
@@ -54,7 +58,13 @@ public class SecurityConfig {
     @Order(3)
     SecurityFilterChain defaultFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(Customizer.withDefaults())
+            .cors(cors -> {
+                if (corsConfigurationSource != null) {
+                    cors.configurationSource(corsConfigurationSource);
+                } else {
+                    cors.disable();
+                }
+            })
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
