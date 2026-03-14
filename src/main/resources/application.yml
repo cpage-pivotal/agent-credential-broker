@@ -32,4 +32,18 @@ broker:
     previous-signing-secret: ${BROKER_PREVIOUS_SIGNING_SECRET:}
     default-ttl: 72h
     max-ttl: 720h
-  target-systems: []
+  cf-api:
+    base-url: ${CF_API_URL:}
+  mtls:
+    enabled: ${BROKER_MTLS_ENABLED:true}
+    port: ${BROKER_MTLS_PORT:8443}
+    workload-identity-header: X-Forwarded-Client-Cert
+#  target-systems:
+#    - name: github
+#      type: OAUTH_AUTHORIZATION_CODE
+#      description: GitHub Copilot MCP Server
+#      clientId: ${GITHUB_OAUTH_CLIENT_ID}
+#      clientSecret: ${GITHUB_OAUTH_CLIENT_SECRET}
+#      mcpServerUrl: "https://api.githubcopilot.com/mcp/"
+#      discovery: rfc9728
+#      defaultScopes: "repo read:org user:email"

@@ -19,8 +19,10 @@ Agents never handle user passwords or long-lived secrets. Users retain full visi
 
 - **Spring Boot 3.5** backend with Spring Security OAuth2 (SSO login via Tanzu SSO / `p-identity`)
 - **Angular 21** Material UI bundled into the jar via `frontend-maven-plugin`
-- **Delegation tokens**: HMAC-SHA256 signed JWTs encoding user, agent, allowed systems, and expiry
+- **Delegation tokens**: HMAC-SHA256 signed JWTs encoding user, agent workload identity, allowed systems, and expiry
 - **Two-layer authorization**: Grants (per-user, per-system) + Delegations (per-user, per-agent, time-limited)
+- **Workload identity**: Agents are identified by their CF Instance Identity certificate (`organization:GUID/space:GUID/app:GUID`), verified via mTLS on port 8443
+- **mTLS enforcement**: All credential requests require a valid CF workload identity certificate — agents connect over C2C networking to the broker's internal route
 - **PostgreSQL** for persistent storage of grants and delegations
 
 ## Deployment
@@ -39,6 +41,28 @@ cf push --vars-file=vars.yaml
 ```
 
 `mvn package` runs the full pipeline: installs Node.js, runs `npm ci` and `ng build`, compiles Java, copies Angular output into `static/`, and packages the fat jar.
+
+### Internal Route and mTLS
+
+The broker exposes an mTLS port (default 8443) that requires agents to present a Cloud Foundry Instance Identity client certificate. All credential requests must come through this port — the broker rejects credential requests that do not include a valid CF workload identity certificate.
+
+After pushing, create an internal route so agents can reach the mTLS port over container-to-container (C2C) networking:
+
+```bash
+cf map-route agent-credential-broker apps.internal --hostname agent-credential-broker
+```
+
+Agents connect to `https://agent-credential-broker.apps.internal:8443`. The public route (e.g., `https://agent-credential-broker.apps.example.com`) remains available for the browser-based UI and OAuth callbacks.
+
+#### Network Policies
+
+Each agent application that needs to reach the broker's mTLS port must have a network policy allowing traffic on port 8443:
+
+```bash
+cf add-network-policy <agent-app-name> agent-credential-broker --port 8443 --protocol tcp
+```
+
+Without this policy, C2C traffic is blocked by default and the agent will receive connection timeouts.
 
 ### SSO Tile Configuration
 
@@ -64,6 +88,13 @@ The broker uses the `p-identity` binding for two purposes: UI login (OAuth2 Logi
 | Variable | Description |
 |---|---|
 | `BROKER_SIGNING_SECRET` | HMAC-SHA256 secret for signing delegation tokens |
+
+**Optional (mTLS):**
+
+| Variable | Default | Description |
+|---|---|---|
+| `BROKER_MTLS_ENABLED` | `true` | Set to `false` to disable the mTLS connector (local development only) |
+| `BROKER_MTLS_PORT` | `8443` | Port for the mTLS connector |
 
 **Required without a bound PostgreSQL service:**
 
@@ -98,14 +129,24 @@ Target systems are declared in `src/main/resources/application.yml` under `broke
 
 ## API
 
-### Credential Access — called by agents
+### Credential Access — called by agents over mTLS (port 8443)
 
 | Method | Path | Auth |
 |---|---|---|
-| `POST` | `/api/credentials/request` | Bearer delegation token |
+| `POST` | `/api/credentials/request` | mTLS client cert + Bearer delegation token |
 | `GET` | `/api/credentials/status` | Bearer delegation token |
 
-### Grant Management — authenticated UI
+All credential requests require a valid CF Instance Identity client certificate presented via mTLS. The broker extracts the workload identity (`organization:GUID/space:GUID/app:GUID`) from the certificate and verifies it matches the `agent` claim in the delegation token.
+
+### Token Exchange — called by agents over mTLS (port 8443)
+
+| Method | Path | Auth |
+|---|---|---|
+| `POST` | `/api/delegations/token` | mTLS client cert + RFC 8693 token exchange |
+
+Agents with a user's access token (e.g., from SSO) can exchange it for a delegation token. The agent's workload identity is extracted from the mTLS client certificate and bound to the resulting delegation token.
+
+### Grant Management — authenticated UI (public route)
 
 | Method | Path | Description |
 |---|---|---|
@@ -114,7 +155,7 @@ Target systems are declared in `src/main/resources/application.yml` under `broke
 | `POST` | `/api/grants/{system}/token` | Store user-provided token |
 | `DELETE` | `/api/grants/{system}` | Revoke grant |
 
-### Delegation Management — authenticated UI or inter-app
+### Delegation Management — authenticated UI or inter-app (public route)
 
 | Method | Path | Description |
 |---|---|---|

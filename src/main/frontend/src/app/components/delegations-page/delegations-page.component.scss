@@ -27,6 +27,12 @@
   margin-bottom: 16px;
 }
 
+.form-hint {
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+  margin: 8px 0 0;
+}
+
 .create-form {
   display: flex;
   gap: 16px;
@@ -42,6 +48,12 @@
     max-width: 140px;
     min-width: 100px;
   }
+}
+
+.guid-value {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  color: var(--mat-sys-on-surface);
 }
 
 .token-display-card {

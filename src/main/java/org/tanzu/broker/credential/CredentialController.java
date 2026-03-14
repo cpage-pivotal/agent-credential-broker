@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
@@ -61,6 +63,29 @@ public class CredentialController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("error", "Delegation token has been revoked"));
         }
+
+        String expectedAgent = jwt.getClaim("agent").asString();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String certWorkloadIdentity = null;
+        if (authentication != null && authentication.isAuthenticated()
+                && !"anonymousUser".equals(authentication.getName())) {
+            certWorkloadIdentity = authentication.getName();
+        }
+
+        if (certWorkloadIdentity == null || !isCanonicalWorkloadIdentity(certWorkloadIdentity)) {
+            log.warn("Credential request rejected — no valid CF workload identity certificate (cert={})",
+                    certWorkloadIdentity);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "Credential requests require mTLS with a CF workload identity certificate"));
+        }
+
+        if (expectedAgent != null && !expectedAgent.equals(certWorkloadIdentity)) {
+            log.warn("Workload identity mismatch: cert={}, delegation_agent={}",
+                    certWorkloadIdentity, expectedAgent);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "Workload identity does not match delegation token"));
+        }
+        log.debug("Workload identity verified: {}", certWorkloadIdentity);
 
         var allowedSystems = jwt.getClaim("systems").asList(String.class);
         if (allowedSystems == null || !allowedSystems.contains(request.targetSystem())) {
@@ -144,5 +169,12 @@ public class CredentialController {
         }
 
         return ResponseEntity.ok(statuses);
+    }
+
+    private static boolean isCanonicalWorkloadIdentity(String identity) {
+        return identity != null
+            && identity.startsWith("organization:")
+            && identity.contains("/space:")
+            && identity.contains("/app:");
     }
 }

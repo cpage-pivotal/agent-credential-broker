@@ -16,6 +16,12 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private final WorkloadIdentityExtractor workloadIdentityExtractor;
+
+    public SecurityConfig(WorkloadIdentityExtractor workloadIdentityExtractor) {
+        this.workloadIdentityExtractor = workloadIdentityExtractor;
+    }
+
     @Bean
     @Order(1)
     SecurityFilterChain credentialApiFilterChain(HttpSecurity http) throws Exception {
@@ -23,6 +29,9 @@ public class SecurityConfig {
             .securityMatcher("/api/credentials/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .x509(x509 -> x509
+                .x509PrincipalExtractor(workloadIdentityExtractor)
+                .userDetailsService(workloadIdentityUserDetailsService()))
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
         return http.build();
     }
@@ -35,7 +44,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .x509(x509 -> x509
-                .subjectPrincipalRegex("CN=(.*?)(?:,|$)")
+                .x509PrincipalExtractor(workloadIdentityExtractor)
                 .userDetailsService(workloadIdentityUserDetailsService()))
             .authorizeHttpRequests(auth -> auth.anyRequest().authenticated());
         return http.build();

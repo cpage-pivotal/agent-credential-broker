@@ -9,12 +9,24 @@
       <mat-card-title>Create Delegation Token</mat-card-title>
     </mat-card-header>
     <mat-card-content>
+      <p class="form-hint">Specify the Cloud Foundry workload that will use this delegation token. Names are resolved to GUIDs via the CF API.</p>
       <div class="create-form">
         <mat-form-field appearance="outline">
-          <mat-label>Agent ID</mat-label>
-          <input matInput [(ngModel)]="agentId" placeholder="e.g. my-batch-agent" />
+          <mat-label>Organization Name</mat-label>
+          <input matInput [(ngModel)]="orgName" placeholder="e.g. my-org" />
         </mat-form-field>
 
+        <mat-form-field appearance="outline">
+          <mat-label>Space Name</mat-label>
+          <input matInput [(ngModel)]="spaceName" placeholder="e.g. dev" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>App Name</mat-label>
+          <input matInput [(ngModel)]="appName" placeholder="e.g. goose-agent" />
+        </mat-form-field>
+      </div>
+      <div class="create-form">
         <mat-form-field appearance="outline">
           <mat-label>Allowed Systems</mat-label>
           <mat-select [(ngModel)]="selectedSystems" multiple>
@@ -34,9 +46,13 @@
       <button
         mat-flat-button
         (click)="createDelegation()"
-        [disabled]="!agentId.trim() || selectedSystems.length === 0"
+        [disabled]="!isFormValid() || selectedSystems.length === 0 || resolving()"
       >
-        <mat-icon>token</mat-icon>
+        @if (resolving()) {
+          <mat-spinner diameter="20"></mat-spinner>
+        } @else {
+          <mat-icon>token</mat-icon>
+        }
         Create Token
       </button>
     </mat-card-actions>
@@ -87,11 +103,29 @@
       @for (delegation of activeDelegations(); track delegation.id) {
         <mat-card class="delegation-card">
           <mat-card-header>
-            <mat-card-title>{{ delegation.agentId }}</mat-card-title>
+            @if (parseWorkloadIdentity(delegation.agentId); as wid) {
+              <mat-card-title>Workload Identity</mat-card-title>
+            } @else {
+              <mat-card-title>{{ delegation.agentId }}</mat-card-title>
+            }
             <mat-card-subtitle>ID: {{ delegation.id }}</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
             <div class="delegation-details">
+              @if (parseWorkloadIdentity(delegation.agentId); as wid) {
+                <div class="detail-row">
+                  <span class="detail-label">Org:</span>
+                  <code class="guid-value">{{ wid.org }}</code>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Space:</span>
+                  <code class="guid-value">{{ wid.space }}</code>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">App:</span>
+                  <code class="guid-value">{{ wid.app }}</code>
+                </div>
+              }
               <div class="detail-row">
                 <span class="detail-label">Systems:</span>
                 <div class="systems-chips">
@@ -141,11 +175,29 @@
           @for (delegation of inactiveDelegations(); track delegation.id) {
             <mat-card class="delegation-card inactive">
               <mat-card-header>
-                <mat-card-title>{{ delegation.agentId }}</mat-card-title>
+                @if (parseWorkloadIdentity(delegation.agentId); as wid) {
+                  <mat-card-title>Workload Identity</mat-card-title>
+                } @else {
+                  <mat-card-title>{{ delegation.agentId }}</mat-card-title>
+                }
                 <mat-card-subtitle>ID: {{ delegation.id }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 <div class="delegation-details">
+                  @if (parseWorkloadIdentity(delegation.agentId); as wid) {
+                    <div class="detail-row">
+                      <span class="detail-label">Org:</span>
+                      <code class="guid-value">{{ wid.org }}</code>
+                    </div>
+                    <div class="detail-row">
+                      <span class="detail-label">Space:</span>
+                      <code class="guid-value">{{ wid.space }}</code>
+                    </div>
+                    <div class="detail-row">
+                      <span class="detail-label">App:</span>
+                      <code class="guid-value">{{ wid.app }}</code>
+                    </div>
+                  }
                   <div class="detail-row">
                     <span class="detail-label">Systems:</span>
                     <div class="systems-chips">

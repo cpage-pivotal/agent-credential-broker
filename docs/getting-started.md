@@ -8,21 +8,87 @@ Many MCP servers require authentication — OAuth tokens, personal access tokens
 
 1. **Users pre-authorize access** by logging into the broker's UI and granting it permission to hold credentials for each target MCP server. For OAuth-based systems, users complete a standard consent flow. For token-based systems, users paste in a personal access token.
 
-2. **Applications get a delegation token** — a signed JWT scoped to a specific user, a specific set of target systems, and a time window. This token is issued by the broker and distributed to the application (typically as an environment variable injected by the Goose Buildpack).
+2. **Applications get a delegation token** — a signed JWT scoped to a specific user, a specific set of target systems, and a time window. Async agents receive a pre-created token via environment variable. Interactive agents obtain one dynamically via RFC 8693 Token Exchange.
 
-3. **At runtime, the agent exchanges the delegation token** for a short-lived access token by calling `POST /api/credentials/request`. The broker validates the delegation, checks that the user has an active grant, and returns a credential ready for use with the target MCP server.
+3. **At runtime, the agent connects to the broker over mTLS** (port 8443 on the internal C2C route) and calls `POST /api/credentials/request` with its delegation token. The broker validates the delegation, verifies the agent's CF workload identity from its Instance Identity certificate, checks that the user has an active grant, and returns a credential ready for use with the target MCP server.
 
-This model ensures that agents never handle user passwords or long-lived secrets, and that users retain full visibility and control over which agents can access which systems.
+This model ensures that agents never handle user passwords or long-lived secrets. The mTLS requirement guarantees that only verified Cloud Foundry workloads can request credentials, and users retain full visibility and control over which agents can access which systems.
 
 ### Integration with the Goose Buildpack
 
-When you deploy an application using the Goose Buildpack, the buildpack expects a `BROKER_DELEGATION_TOKEN` environment variable to be set. Provide this by:
+Agent applications deployed with the [Goose Buildpack](https://github.com/cpage-pivotal/goose-buildpack) connect to the broker over Cloud Foundry's container-to-container (C2C) network using mutual TLS (mTLS). The broker verifies the agent's identity using its CF Instance Identity certificate and only serves credentials to agents whose workload identity matches the delegation token.
 
-1. Logging into the broker UI
-2. Creating a delegation scoped to the target systems your application needs
-3. Copying the generated token into your application's environment (via `cf set-env`, `vars.yaml`, or a secrets manager)
+#### Agent Environment Variables
 
-The Goose Buildpack passes this token to the embedded Goose agent, which presents it when requesting credentials from the broker at runtime.
+Configure these in your agent application's `manifest.yml` or `vars.yaml`:
+
+| Variable | Required | Description |
+|---|---|---|
+| `BROKER_BASE_URL` | Yes | The broker's internal mTLS endpoint. Must point to the internal route on port 8443: `https://agent-credential-broker.apps.internal:8443` |
+| `BROKER_PUBLIC_URL` | No | The broker's public URL (e.g., `https://agent-credential-broker.apps.example.com`). Set this if your agent has a UI that needs to link users to the broker's grants page. If not set, the agent will use `BROKER_BASE_URL` for UI links (which won't work from a browser). |
+| `BROKER_DELEGATION_TOKEN` | Depends | A pre-created delegation token for async agents (e.g., email agents, scheduled tasks). Not needed for interactive agents that create delegations at session time via RFC 8693 Token Exchange. |
+
+**`BROKER_BASE_URL`** must always point to the internal mTLS route. The Goose Buildpack's Java wrapper detects `.apps.internal` in the URL and automatically configures mTLS using the app's CF Instance Identity certificate. It also disables hostname verification for the connection, since CF Instance Identity certificates do not include internal route hostnames in their Subject Alternative Names.
+
+**`BROKER_DELEGATION_TOKEN`** is used by async agents that run without an interactive user session. Create this token in the broker UI:
+
+1. Log into the broker UI
+2. Navigate to "Delegations" and create a new delegation
+3. Select the target systems the agent needs access to
+4. Optionally bind the delegation to a specific workload identity (org/space/app) — if bound, only the matching agent can use the token
+5. Copy the generated token into your agent's environment
+
+Interactive agents (e.g., chat applications) do not need a static delegation token. Instead, they obtain one dynamically by performing an RFC 8693 Token Exchange on each user session, presenting the user's access token as the `subject_token`. The broker binds the resulting delegation to the agent's workload identity automatically.
+
+#### Network Policies
+
+CF C2C traffic is denied by default. Each agent app needs a network policy to reach the broker's mTLS port:
+
+```bash
+cf add-network-policy <agent-app-name> agent-credential-broker --port 8443 --protocol tcp
+```
+
+#### Example: Async Agent (e.g., email agent)
+
+`manifest.yml`:
+```yaml
+applications:
+  - name: my-email-agent
+    env:
+      BROKER_BASE_URL: https://agent-credential-broker.apps.internal:8443
+      BROKER_DELEGATION_TOKEN: ((BROKER_DELEGATION_TOKEN))
+```
+
+`vars.yaml`:
+```yaml
+BROKER_DELEGATION_TOKEN: <token-from-broker-ui>
+```
+
+```bash
+cf add-network-policy my-email-agent agent-credential-broker --port 8443 --protocol tcp
+```
+
+#### Example: Interactive Agent (e.g., chat application)
+
+`manifest.yml`:
+```yaml
+applications:
+  - name: my-chat-agent
+    env:
+      BROKER_BASE_URL: https://agent-credential-broker.apps.internal:8443
+      BROKER_PUBLIC_URL: ((BROKER_PUBLIC_URL))
+```
+
+`vars.yaml`:
+```yaml
+BROKER_PUBLIC_URL: https://agent-credential-broker.apps.example.com
+```
+
+```bash
+cf add-network-policy my-chat-agent agent-credential-broker --port 8443 --protocol tcp
+```
+
+No `BROKER_DELEGATION_TOKEN` is needed — the application creates delegations dynamically via Token Exchange when users start a session.
 
 ---
 

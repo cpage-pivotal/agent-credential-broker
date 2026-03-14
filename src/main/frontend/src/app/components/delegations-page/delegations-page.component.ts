@@ -18,6 +18,7 @@ import {
   DelegationResponse,
 } from '../../services/delegation.service';
 import { TargetSystemService, TargetSystem } from '../../services/target-system.service';
+import { CfLookupService } from '../../services/cf-lookup.service';
 
 @Component({
   selector: 'app-delegations-page',
@@ -43,11 +44,13 @@ import { TargetSystemService, TargetSystem } from '../../services/target-system.
 export class DelegationsPageComponent implements OnInit {
   private delegationService = inject(DelegationService);
   private targetSystemService = inject(TargetSystemService);
+  private cfLookupService = inject(CfLookupService);
   private snackBar = inject(MatSnackBar);
 
   protected readonly delegations = signal<DelegationResponse[]>([]);
   protected readonly targetSystems = signal<TargetSystem[]>([]);
   protected readonly loading = signal(true);
+  protected readonly resolving = signal(false);
   protected readonly newlyCreatedToken = signal<string | null>(null);
 
   protected readonly activeDelegations = computed(() =>
@@ -58,7 +61,9 @@ export class DelegationsPageComponent implements OnInit {
     this.delegations().filter(d => d.revoked || this.isExpired(d))
   );
 
-  protected agentId = '';
+  protected orgName = '';
+  protected spaceName = '';
+  protected appName = '';
   protected selectedSystems: string[] = [];
   protected ttlHours = 72;
 
@@ -80,22 +85,46 @@ export class DelegationsPageComponent implements OnInit {
     }
   }
 
-  async createDelegation(): Promise<void> {
-    if (!this.agentId.trim() || this.selectedSystems.length === 0) return;
+  protected isFormValid(): boolean {
+    return this.orgName.trim().length > 0
+      && this.spaceName.trim().length > 0
+      && this.appName.trim().length > 0;
+  }
 
+  protected parseWorkloadIdentity(agentId: string): { org: string; space: string; app: string } | null {
+    const match = agentId.match(/^organization:(.+)\/space:(.+)\/app:(.+)$/);
+    if (!match) return null;
+    return { org: match[1], space: match[2], app: match[3] };
+  }
+
+  async createDelegation(): Promise<void> {
+    if (!this.isFormValid() || this.selectedSystems.length === 0) return;
+
+    this.resolving.set(true);
     try {
+      const resolved = await this.cfLookupService.resolveWorkload(
+        this.orgName.trim(), this.spaceName.trim(), this.appName.trim()
+      );
+
+      const agentId = `organization:${resolved.orgGuid}/space:${resolved.spaceGuid}/app:${resolved.appGuid}`;
+
       const result = await this.delegationService.createDelegation({
-        agentId: this.agentId.trim(),
+        agentId,
         allowedSystems: this.selectedSystems,
         ttlHours: this.ttlHours,
       });
       this.newlyCreatedToken.set(result.token);
       this.snackBar.open('Delegation token created', 'OK', { duration: 3000 });
-      this.agentId = '';
+      this.orgName = '';
+      this.spaceName = '';
+      this.appName = '';
       this.selectedSystems = [];
       this.loadData();
-    } catch {
-      this.snackBar.open('Failed to create delegation', 'OK', { duration: 5000 });
+    } catch (err: any) {
+      const message = err?.error?.error || 'Failed to create delegation';
+      this.snackBar.open(message, 'OK', { duration: 5000 });
+    } finally {
+      this.resolving.set(false);
     }
   }
 

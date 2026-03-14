@@ -11,3 +11,4 @@ applications:
     env:
       JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
       BROKER_SIGNING_SECRET: ((BROKER_SIGNING_SECRET))
+      CF_API_URL: ((CF_API_URL))
